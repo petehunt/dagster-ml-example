@@ -6,7 +6,8 @@ import requests
 from sklearn.feature_extraction import FeatureHasher
 from collections import Counter
 from types import SimpleNamespace
-from sklearn.neighbors import NearestNeighbors
+from sklearn.metrics import pairwise_distances
+import numpy as np
 
 
 @asset(config_schema={"small": bool})
@@ -48,8 +49,24 @@ def movie_to_users(movielens_ratings):
     return SimpleNamespace(movie_ids=movie_ids, features=features)
 
 
+class RecommenderModel:
+    def __init__(self, features, ids):
+        # train the model by eagerly computing the distances between
+        # every pair of movies. there are better ways of doing this,
+        # including using an approximate nearest neighbors index
+        # such as faiss, however, this is sufficient for the purpose
+        # of this demo.
+        self.matrix = pairwise_distances(
+            features, features, metric="cosine", n_jobs=-1)
+        self.ids = ids
+
+    def find_similar(self, id, n=5):
+        index = self.ids.index(id)
+        row = self.matrix[index]
+        top_indexes = np.argsort(row)
+        return [self.ids[index] for index in top_indexes[:n]]
+
+
 @asset
 def movie_recommender_model(movie_to_users):
-    model = NearestNeighbors(n_jobs=-1)
-    model.fit(movie_to_users.features)
-    return SimpleNamespace(movie_ids=movie_to_users.movie_ids, model=model)
+    return RecommenderModel(movie_to_users.features, movie_to_users.movie_ids)

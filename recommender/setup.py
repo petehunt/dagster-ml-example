@@ -9,6 +9,7 @@ if __name__ == "__main__":
             "scikit-learn",
             "pandas",
             "requests",
+            "numpy",
         ],
         extras_require={"dev": ["dagit", "pytest"]},
     )

@@ -18,22 +18,14 @@ def test_smoke():
 
     movies = movielens_movies(zip_file)
     users = movie_to_users(movielens_ratings(zip_file))
-    result = movie_recommender_model(users)
-
-    def movie_id_to_index(movie_id):
-        return result.movie_ids.index(movie_id)
-
-    def index_to_movie_id(index):
-        return result.movie_ids[index]
+    model = movie_recommender_model(users)
 
     def movie_id_to_title(movie_id):
         return movies.loc[movies["movieId"] == movie_id]["title"].iloc[0]
 
     def get_similar_movie_titles(movie_id):
-        similar_movie_ids = result.model.kneighbors(
-            users.features[[movie_id_to_index(movie_id)]], return_distance=False)[0]
-        return [movie_id_to_title(index_to_movie_id(index))
-                for index in similar_movie_ids]
+        similar_movie_ids = model.find_similar(movie_id)
+        return [movie_id_to_title(movie_id) for movie_id in similar_movie_ids]
 
     die_hard_2_movie_id = 1370
     assert movie_id_to_title(die_hard_2_movie_id) == "Die Hard 2 (1990)"
@@ -43,17 +35,7 @@ def test_smoke():
 
     # these results seem reasonable by human eval
     assert get_similar_movie_titles(die_hard_2_movie_id) == [
-        'Die Hard 2 (1990)',
-        'Peacemaker, The (1997)',
-        'First Blood (Rambo: First Blood) (1982)',
-        'Rambo: First Blood Part II (1985)',
-        'For Your Eyes Only (1981)'
-    ]
+        'Die Hard 2 (1990)', 'Die Hard (1988)', 'Face/Off (1997)', 'Con Air (1997)', 'Batman Returns (1992)']
 
     assert get_similar_movie_titles(cinderella_movie_id) == [
-        'Cinderella (1950)',
-        'Sleeping Beauty (1959)',
-        'Peter Pan (1953)',
-        'Alice in Wonderland (1951)',
-        'Mouse Hunt (1997)'
-    ]
+        'Cinderella (1950)', 'Peter Pan (1953)', 'Alice in Wonderland (1951)', 'Sleeping Beauty (1959)', 'Pinocchio (1940)']
