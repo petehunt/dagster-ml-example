@@ -1,3 +1,4 @@
+from sklearn.decomposition import TruncatedSVD
 from dagster import asset
 from zipfile import ZipFile
 from io import BytesIO
@@ -20,20 +21,21 @@ def movielens_zip(context):
     return requests.get(url).content
 
 
+def extract_file_from_zip(zip_file_bytes, filename):
+    with ZipFile(BytesIO(zip_file_bytes)) as archive:
+        full_path = [candidate_path for candidate_path in archive.namelist(
+        ) if candidate_path.endswith(filename)][0]
+        return pd.read_csv(archive.open(full_path))
+
+
 @asset
 def movielens_ratings(movielens_zip):
-    with ZipFile(BytesIO(movielens_zip)) as archive:
-        filename = [filename for filename in archive.namelist(
-        ) if filename.endswith("ratings.csv")][0]
-        return pd.read_csv(archive.open(filename))
+    return extract_file_from_zip(movielens_zip, "ratings.csv")
 
 
 @asset
 def movielens_movies(movielens_zip):
-    with ZipFile(BytesIO(movielens_zip)) as archive:
-        filename = [filename for filename in archive.namelist(
-        ) if filename.endswith("movies.csv")][0]
-        return pd.read_csv(archive.open(filename))
+    return extract_file_from_zip(movielens_zip, "movies.csv")
 
 
 @asset
@@ -47,6 +49,15 @@ def movie_to_users(movielens_ratings):
         [Counter(str(user_id) for user_id in user_ids) for user_ids in df["userId"]])
 
     return SimpleNamespace(movie_ids=movie_ids, features=features)
+
+
+@asset
+def movie_to_users_compressed(movie_to_users):
+    return SimpleNamespace(
+        movie_ids=movie_to_users.movie_ids,
+        features=TruncatedSVD(100, random_state=42).fit_transform(
+            movie_to_users.features)
+    )
 
 
 class RecommenderModel:
@@ -68,5 +79,5 @@ class RecommenderModel:
 
 
 @asset
-def movie_recommender_model(movie_to_users):
-    return RecommenderModel(movie_to_users.features, movie_to_users.movie_ids)
+def movie_recommender_model(movie_to_users_compressed):
+    return RecommenderModel(movie_to_users_compressed.features, movie_to_users_compressed.movie_ids)

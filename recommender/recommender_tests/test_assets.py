@@ -1,4 +1,4 @@
-from recommender.assets import movielens_zip, movielens_ratings, movielens_movies, movie_to_users, movie_recommender_model
+from recommender.assets import movielens_zip, movielens_ratings, movielens_movies, movie_to_users, movie_to_users_compressed, movie_recommender_model
 import pandas as pd
 import os
 from dagster import build_op_context
@@ -18,7 +18,8 @@ def test_smoke():
 
     movies = movielens_movies(zip_file)
     users = movie_to_users(movielens_ratings(zip_file))
-    model = movie_recommender_model(users)
+    compressed = movie_to_users_compressed(users)
+    model = movie_recommender_model(compressed)
 
     def movie_id_to_title(movie_id):
         return movies.loc[movies["movieId"] == movie_id]["title"].iloc[0]
@@ -35,7 +36,7 @@ def test_smoke():
 
     # these results seem reasonable by human eval
     assert get_similar_movie_titles(die_hard_2_movie_id) == [
-        'Die Hard 2 (1990)', 'Die Hard (1988)', 'Face/Off (1997)', 'Con Air (1997)', 'Batman Returns (1992)']
+        'Die Hard 2 (1990)', 'Die Hard (1988)', 'Face/Off (1997)', 'Air Force One (1997)', 'Con Air (1997)']
 
     assert get_similar_movie_titles(cinderella_movie_id) == [
-        'Cinderella (1950)', 'Peter Pan (1953)', 'Alice in Wonderland (1951)', 'Sleeping Beauty (1959)', 'Pinocchio (1940)']
+        'Cinderella (1950)', 'Peter Pan (1953)', 'Alice in Wonderland (1951)', 'Snow White and the Seven Dwarfs (1937)', 'Pinocchio (1940)']
