@@ -1,3 +1,4 @@
+from sklearn.neighbors import NearestNeighbors
 from sklearn.decomposition import TruncatedSVD
 from dagster import asset
 from zipfile import ZipFile
@@ -7,7 +8,6 @@ import requests
 from sklearn.feature_extraction import FeatureHasher
 from collections import Counter
 from types import SimpleNamespace
-from sklearn.metrics import pairwise_distances
 import numpy as np
 
 
@@ -52,7 +52,7 @@ def movie_to_users(movielens_ratings):
 
 
 @asset
-def movie_to_users_compressed(movie_to_users):
+def movie_to_features(movie_to_users):
     return SimpleNamespace(
         movie_ids=movie_to_users.movie_ids,
         features=TruncatedSVD(100, random_state=42).fit_transform(
@@ -62,22 +62,17 @@ def movie_to_users_compressed(movie_to_users):
 
 class RecommenderModel:
     def __init__(self, features, ids):
-        # train the model by eagerly computing the distances between
-        # every pair of movies. there are better ways of doing this,
-        # including using an approximate nearest neighbors index
-        # such as faiss, however, this is sufficient for the purpose
-        # of this demo.
-        self.matrix = pairwise_distances(
-            features, features, metric="cosine", n_jobs=-1)
+        self.features = features
+        self.nn = NearestNeighbors(metric="cosine", n_jobs=-1)
+        self.nn.fit(self.features)
         self.ids = ids
 
     def find_similar(self, id, n=5):
         index = self.ids.index(id)
-        row = self.matrix[index]
-        top_indexes = np.argsort(row)
-        return [self.ids[index] for index in top_indexes[:n]]
+        top_indexes, = self.nn.kneighbors(self.features[[index]], n, False)
+        return [self.ids[index] for index in top_indexes]
 
 
 @asset
-def movie_recommender_model(movie_to_users_compressed):
-    return RecommenderModel(movie_to_users_compressed.features, movie_to_users_compressed.movie_ids)
+def movie_recommender_model(movie_to_features):
+    return RecommenderModel(movie_to_features.features, movie_to_features.movie_ids)

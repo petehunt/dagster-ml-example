@@ -1,4 +1,4 @@
-from recommender.assets import movielens_zip, movielens_ratings, movielens_movies, movie_to_users, movie_to_users_compressed, movie_recommender_model
+from recommender.assets import movielens_zip, movielens_ratings, movielens_movies, movie_to_users, movie_to_features, movie_recommender_model
 import pandas as pd
 import os
 from dagster import build_op_context
@@ -18,8 +18,8 @@ def test_smoke():
 
     movies = movielens_movies(zip_file)
     users = movie_to_users(movielens_ratings(zip_file))
-    compressed = movie_to_users_compressed(users)
-    model = movie_recommender_model(compressed)
+    features = movie_to_features(users)
+    model = movie_recommender_model(features)
 
     def movie_id_to_title(movie_id):
         return movies.loc[movies["movieId"] == movie_id]["title"].iloc[0]
